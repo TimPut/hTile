@@ -1,0 +1,6 @@
+packages: .
+
+source-repository-package
+    type: git
+    location: https://github.com/TimPut/STL-Linear.git
+    tag: 214d506803848696a03ff961d18e896c1d22e0b6
