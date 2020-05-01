@@ -4,3 +4,26 @@
 [![GPL-3.0-only license](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 Convert geotiffs and other images to STLs for printing or machining.
+
+![Preview rendered with FSTL](imgs/sample.jpeg?raw=true)
+
+# Usage
+```
+hTile inputFile.tif outputFile.stl
+```
+
+# Known Bugs
+1) Breaks on tifs with nonstandard metadata. This is a problem upstream
+   with Juicy-Pixels. The workaround is to preprocess the images by
+   stripping the meta data with
+   ```
+   mogrify -strip inputFile.tif
+   ```
+# TODO
+1) [ ] Currently processes entire rectangular area of the source image into
+   STL, we would like to eventually process hexagonal sub-regions.
+2) [ ] Currently processes whole image into a single STL, we would like to
+   tile multiple STLs out of a single source image.
+3) [-] --Currently assumes monochrome tif source file. Need to add format
+   checking, and compatibility with other formats.-- Relatively
+   untested, but should work now.
