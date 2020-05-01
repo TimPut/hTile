@@ -26,8 +26,8 @@ hTile inputFile.tif outputFile.stl
    STL, we would like to eventually process hexagonal sub-regions.
 2) [ ] Currently processes whole image into a single STL, we would like to
    tile multiple STLs out of a single source image.
-3) [ ] --Currently assumes monochrome tif source file. Need to add format
-   checking, and compatibility with other formats.-- Relatively
+3) [ ] ~~Currently assumes monochrome tif source file. Need to add format
+   checking, and compatibility with other formats.~~ Relatively
    untested, but should work now.
 
 
