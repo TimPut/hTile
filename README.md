@@ -5,9 +5,11 @@
 
 Convert geotiffs and other images to STLs for printing or machining.
 
-![Preview rendered with FSTL](imgs/sample.jpeg?raw=true)
+![Preview rendered with FSTL](imgs/sample.jpeg?raw=true)<sup>[1](#fstl)</sup>
 
 # Usage
+If you are looking for topographic data to use with this, I recommend getting it from [https://www.eorc.jaxa.jp/ALOS/en/aw3d30/].
+
 ```
 hTile inputFile.tif outputFile.stl
 ```
@@ -24,6 +26,9 @@ hTile inputFile.tif outputFile.stl
    STL, we would like to eventually process hexagonal sub-regions.
 2) [ ] Currently processes whole image into a single STL, we would like to
    tile multiple STLs out of a single source image.
-3) [-] --Currently assumes monochrome tif source file. Need to add format
+3) [ ] --Currently assumes monochrome tif source file. Need to add format
    checking, and compatibility with other formats.-- Relatively
    untested, but should work now.
+
+
+<a name="fstl">1</a>: [https://www.mattkeeter.com/projects/fstl/]
