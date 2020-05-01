@@ -22,7 +22,15 @@ source-repository head
 
 common common-options
   build-depends:       base ^>= 4.13.0.0
-  
+                     , Color
+                     , STL-Linear
+                     , linear
+                     , massiv
+                     , massiv-io
+                     , vector
+                     , bytestring
+                     , binary
+
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities
