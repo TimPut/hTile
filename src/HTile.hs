@@ -7,22 +7,18 @@ Convert geotiffs and other images to STLs for printing or machining.
 -}
 
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies     #-}
 
 module HTile where
 
-import           Data.Binary
-import qualified Data.ByteString      as B
+import           Data.Binary          hiding (get)
 import           Data.Massiv.Array
 import           Data.Massiv.Array.IO hiding (V3)
-import qualified Data.Vector.Unboxed  as V
-import qualified Graphics.Color.Model as CM
 import           Graphics.STL
-import           Linear
+import           Linear               hiding (project)
 import           Prelude              hiding (map)
-import           System.Environment   (getArgs)
 
+flattenTuples :: [(a,a)] -> [a]
 flattenTuples []         = []
 flattenTuples ((a,b):xs) = a:b: flattenTuples xs
 
@@ -30,12 +26,13 @@ flattenTuples ((a,b):xs) = a:b: flattenTuples xs
 -- values in meters. If we scale down 1:100, then load the resulting
 -- STL in a slicer which assumes mm scale units, then we get a
 -- 1:100000 scale result, which is a good ballpark scale factor.
+scale :: Triangle -> Triangle
 scale (V4 n a b c) = rebuildNormal $ V4 n (s a) (s b) (s c)
   where s (V3 x y z) = let m = 100 in V3 (x * (30/m)) (y*(30/m)) (z/m)
 
 -- Extract raw pixel data from colour space and pixel wrappers
 raw :: (ColorModel cs e, Components cs e ~ Word16) => Pixel cs e -> Word16
-raw = fromIntegral . toComponents . pixelColor
+raw = toComponents . pixelColor
 
 rebuildNormal :: Triangle -> Triangle
 rebuildNormal (V4 _ a b c) = let t = c - a
@@ -68,16 +65,6 @@ triangulation = makeStencilDef 0 (Sz (2 :. 2)) (0 :. 0) $ \ get ->
 mkTop :: Array U Ix2 (V3 Float) -> Array DW Ix2 (Triangle, Triangle)
 mkTop = applyStencil noPadding triangulation
 
-sideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
-sideStencil = makeStencilDef 0 (Sz 2) (0) $ \ get ->
-               let tl = get (0)
-                   tr = get (1)
-                   bl = project <$> tl
-                   br = project <$> tr
-               in (,) <$> (V4 <$> 0 <*> tl <*> bl <*> tr) <*> (V4 <$> 0 <*> tr <*> bl <*> br)
-  where
-    project (V3 x y _) = V3 x y 0
-{-# INLINE sideStencil #-}
 
 frontSideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
 frontSideStencil = makeStencilDef 0 (Sz 2) (0) $ \ get ->
