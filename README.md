@@ -5,10 +5,10 @@
 
 Convert geotiffs and other images to STLs for printing or machining.
 
-![Preview rendered with FSTL](imgs/sample.jpeg?raw=true)<sup>[1](#fstl)</sup>
+![](imgs/sample.jpeg?raw=true)<sup>[1](#fstl)</sup>
 
 # Usage
-If you are looking for topographic data to use with this, I recommend getting it from [https://www.eorc.jaxa.jp/ALOS/en/aw3d30/].
+If you are looking for topographic data to use with this, I recommend getting it from https://www.eorc.jaxa.jp/ALOS/en/aw3d30/.
 
 ```
 hTile inputFile.tif outputFile.stl
@@ -31,4 +31,4 @@ hTile inputFile.tif outputFile.stl
    untested, but should work now.
 
 
-<a name="fstl">1</a>: [https://www.mattkeeter.com/projects/fstl/]
+<a name="fstl">1</a>: preview rendered with https://www.mattkeeter.com/projects/fstl/
