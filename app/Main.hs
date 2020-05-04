@@ -40,8 +40,9 @@ main = do
       top = toList surface
       bottom = toList $mkBottom surface
 
-      tris = V.fromList . fmap scale . flattenTuples $ (top++bottom++sides)
+      --tris = V.fromList . fmap scale . flattenTuples $ (top++bottom++sides)
       -- tris = V.fromList . fmap scale . concat . fmap (\(a,b) -> [a,b]) $ (top++bottom++sides)
+      tris = V.fromListN facets . concat . fmap (\(a,b) -> [scale a, scale b]) $ (top++bottom++sides)
       r = STL { header = pack "Made with hTile, by tim put."
               , numFacets = fromIntegral facets
               , triangles = tris
