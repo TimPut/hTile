@@ -117,9 +117,9 @@ mkEdges arr =
   let (Sz2 x y) = size arr
       f = toList . dropWindow
       upEdge = f $ mkFrontSides (arr !> 0)
-      downEdge  = f $ mkBackSides (arr !> (y-1))
+      downEdge  = f $ mkBackSides (arr !> (x-1))
       leftEdge  = f $ mkFrontSides (arr <! 0)
-      rightEdge  = f $ mkBackSides (arr <! (x-1))
+      rightEdge  = f $ mkBackSides (arr <! (y-1))
   in upEdge ++ downEdge ++ leftEdge ++ rightEdge
 
 unsafeNormalize :: V3 Float -> V3 Float
