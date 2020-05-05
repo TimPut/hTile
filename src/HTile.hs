@@ -37,7 +37,7 @@ raw = toComponents . pixelColor
 rebuildNormal :: Triangle -> Triangle
 rebuildNormal (V4 _ a b c) = let t = c - a
                                  u = b - a
-                             in V4 (normalize (t `cross` u)) a b c
+                             in V4 (unsafeNormalize (t `cross` u)) a b c
 
 -- Annotate pixels with their locations as a function of their indices
 locate :: (Source r Ix2 Word16) => Array r Ix2 Word16 -> Array D Ix2 (V3 Float)
@@ -70,22 +70,18 @@ frontSideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
 frontSideStencil = makeStencilDef 0 (Sz 2) (0) $ \ get ->
                let tl = get (0)
                    tr = get (1)
-                   bl = project <$> tl
-                   br = project <$> tr
+                   bl = projectOnXy <$> tl
+                   br = projectOnXy <$> tr
                in (,) <$> (V4 <$> 0 <*> tl <*> bl <*> tr) <*> (V4 <$> 0 <*> tr <*> bl <*> br)
-  where
-    project (V3 x y _) = V3 x y 0
 {-# INLINE frontSideStencil #-}
 
 backSideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
 backSideStencil = makeStencilDef 0 (Sz 2) (0) $ \ get ->
                let tl = get (0)
                    tr = get (1)
-                   bl = project <$> tl
-                   br = project <$> tr
+                   bl = projectOnXy <$> tl
+                   br = projectOnXy <$> tr
                in (,) <$> (V4 <$> 0 <*> tl <*> tr <*> bl) <*> (V4 <$> 0 <*> tr <*> br <*> bl)
-  where
-    project (V3 x y _) = V3 x y 0
 {-# INLINE backSideStencil #-}
 
 mkFrontSides :: Manifest r Ix1 (V3 Float) =>
@@ -107,8 +103,10 @@ mkBottom = map (\(t1,t2) -> (project t1, project t2))
     where
       -- project flips the triangle orientation (swaps c and b) to
       -- produce the correct normals.
-      project (V4 _ a b c) = V4 0 (project3 a) (project3 c) (project3 b)
-      project3 (V3 x y _) = V3 x y 0
+      project (V4 _ a b c) = V4 0 (projectOnXy a) (projectOnXy c) (projectOnXy b)
+
+projectOnXy :: V3 Float -> V3 Float
+projectOnXy (V3 x y _) = V3 x y 0
 
 mkEdges :: ( Manifest (R r) Ix1 (V3 Float)
           , OuterSlice r Ix2 (V3 Float)
@@ -123,3 +121,7 @@ mkEdges arr =
       leftEdge  = f $ mkFrontSides (arr <! 0)
       rightEdge  = f $ mkBackSides (arr <! (x-1))
   in upEdge ++ downEdge ++ leftEdge ++ rightEdge
+
+unsafeNormalize :: V3 Float -> V3 Float
+unsafeNormalize v = fmap (/sqrt l) v
+  where l = quadrance v
