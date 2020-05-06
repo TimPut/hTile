@@ -9,6 +9,7 @@ Convert geotiffs and other images to STLs for printing or machining.
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies     #-}
 
+
 module HTile where
 
 import           Data.Binary          hiding (get)
@@ -29,6 +30,11 @@ flattenTuples ((a,b):xs) = a:b: flattenTuples xs
 scale :: Triangle -> Triangle
 scale (V4 n a b c) = rebuildNormal $ V4 n (s a) (s b) (s c)
   where s (V3 x y z) = let m = 100 in V3 (x * (30/m)) (y*(30/m)) (z/m)
+
+scaleArray :: (Source r i (V4 (V3 Float), V4 (V3 Float))) =>
+         Array r i (V4 (V3 Float), V4 (V3 Float)) ->
+         Array D i (V4 (V3 Float), V4 (V3 Float))
+scaleArray = map (\(t1,t2) -> (scale t1, scale t2))
 
 -- Extract raw pixel data from colour space and pixel wrappers
 raw :: (ColorModel cs e, Components cs e ~ Word16) => Pixel cs e -> Word16
@@ -114,7 +120,7 @@ mkEdges :: ( Manifest (R r) Ix1 (V3 Float)
           [(Triangle,Triangle)]
 mkEdges arr =
   let (Sz2 x y) = size arr
-      f = toList . dropWindow
+      f = toList . scaleArray . dropWindow
       upEdge = f $ mkFrontSides (arr !> 0)
       downEdge  = f $ mkBackSides (arr !> (x-1))
       leftEdge  = f $ mkFrontSides (arr <! 0)

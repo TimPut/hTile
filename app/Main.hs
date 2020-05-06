@@ -16,9 +16,6 @@ main = do
   -- TODO: proper cli
   [inFile, outFile] <- getArgs :: IO [String]
 
-  -- Old fixed tif input mode
-  -- file <- readArray TIF filename :: IO (Image S CM.Y Word16)
-
   -- Automatically convert colour images to greyscale using the D65
   -- illuminant standard. If the image is already greyscale this
   -- transformation is the identity (this is not documented in
@@ -37,13 +34,11 @@ main = do
 
       sides = mkEdges located
       surface = dropWindow $ mkTop located
-      top = toList surface
-      bottom = toList $mkBottom surface
+      top = toList . scaleArray $ surface
+      bottom = toList . scaleArray $ mkBottom surface
 
-      --tris = V.fromList . fmap scale . flattenTuples $ (top++bottom++sides)
-      -- tris = V.fromList . fmap scale . concat . fmap (\(a,b) -> [a,b]) $ (top++bottom++sides)
-      tris = V.fromListN facets . concat . fmap (\(a,b) -> [scale a, scale b]) $ (top++bottom++sides)
-      r = STL { header = pack "Made with hTile, by tim put."
+      tris = V.fromListN facets . flattenTuples $ (top++bottom++sides)
+      r = STL { header = pack "Made with hTile"
               , numFacets = fromIntegral facets
               , triangles = tris
               }
