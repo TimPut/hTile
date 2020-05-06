@@ -94,16 +94,15 @@ mkBackSides :: Manifest r Ix1 (V3 Float) =>
             Array DW Ix1 (Triangle, Triangle)
 mkBackSides = applyStencil noPadding backSideStencil
 
--- TODO: this might be better as (Triangle -> Triangle) applied with
--- an fmap.
 mkBottom :: (Source r i (V4 (V3 Float), V4 (V3 Float))) =>
          Array r i (V4 (V3 Float), V4 (V3 Float)) ->
          Array D i (V4 (V3 Float), V4 (V3 Float))
-mkBottom = map (\(t1,t2) -> (project t1, project t2))
-    where
-      -- project flips the triangle orientation (swaps c and b) to
-      -- produce the correct normals.
-      project (V4 _ a b c) = V4 0 (projectOnXy a) (projectOnXy c) (projectOnXy b)
+mkBottom = map (\(t1,t2) -> (projectTriangle t1, projectTriangle t2))
+
+-- projectTriangle flips the triangle orientation (swaps c and b) to
+-- produce the correct normals.
+projectTriangle :: Triangle -> Triangle
+projectTriangle (V4 _ a b c) = V4 0 (projectOnXy a) (projectOnXy c) (projectOnXy b)
 
 projectOnXy :: V3 Float -> V3 Float
 projectOnXy (V3 x y _) = V3 x y 0
