@@ -30,7 +30,8 @@ common common-options
                      , vector
                      , bytestring
                      , binary
-
+                     , Hexagonal
+                     
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities
@@ -59,6 +60,7 @@ executable hTile
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       hTile
+                     , optparse-applicative
   ghc-options:         -threaded
                        -rtsopts
                        -with-rtsopts=-N

@@ -8,16 +8,19 @@ Convert geotiffs and other images to STLs for printing or machining.
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE PartialTypeSignatures     #-}
 
 
 module HTile where
 
 import           Data.Binary          hiding (get)
 import           Data.Massiv.Array
-import           Data.Massiv.Array.IO hiding (V3)
+import           Data.Massiv.Array.IO hiding (V3,V2)
 import           Graphics.STL
 import           Linear               hiding (project)
 import           Prelude              hiding (map)
+import Hexagonal
+
 
 flattenTuples :: [(a,a)] -> [a]
 flattenTuples []         = []
@@ -130,3 +133,71 @@ mkEdges arr =
 unsafeNormalize :: V3 Float -> V3 Float
 unsafeNormalize v = fmap (/sqrt l) v
   where l = quadrance v
+
+
+-- TODO rewrite hex utilites for better interface with massiv, less
+-- wrapping and unwrapping of Linear.V2
+resampleToHex
+  :: (Floating e, RealFrac e, Manifest r1 Ix2 e,
+      Construct r2 Ix2 e) =>
+     Array r1 Ix2 e -> Array r2 Ix2 e
+resampleToHex arr = makeArray Par (Sz (hx :. hy)) indexer
+  where
+    indexer = \(i :. j) -> bilinearStoRh (\(V2 x y) -> arr ! (x :. y)) (V2 i j)
+    (Sz2 sx sy) = size arr
+    V2 hx hy = fmap (\a -> a - 1) . fmap (floor :: Float -> Int) $ sToRh (V2 sx sy)
+
+-- Annotate row offset hexagonal grid pixels with their Cartesian
+-- coordinates as a function of their indices.
+locateRh :: Array D Ix2 Float -> Array D Ix2 (V3 Float)
+locateRh = imap (\ (x :. y) z -> let V2 x' y' = rhToS (V2 x y) in V3 x' y' z)
+
+mkTopRh
+  :: (Manifest r Ix2 e, Num e, Extract r Ix2 e,
+      Source (R r) Ix2 e) =>
+     Array r Ix2 e -> Array D Ix2 (V4 e, V4 e)
+mkTopRh arr = imap mkTriangles (extract' (0 :. 0) (Sz (x-1 :. y-1)) arr)
+  where
+    Sz2 x y = size arr
+    mkTriangles (i :. j) v =
+        let
+            tl =  v -- arr ! (i :. j)
+            tr = arr ! (i+ 1 :. j)
+            bl = arr ! (i :. j + 1)
+            br = arr ! (i + 1 :. j + 1)
+        in if even j
+           then (V4 0 tl bl tr, V4 0 tr bl br)
+           else (V4 0 tl bl br, V4 0 tl br tr)
+
+-- TODO this bound is conservative in some cases
+maxHex :: Sz2 -> (Int, V2 Int)
+maxHex (Sz2 x y) = let l = ((min x y) `div` 2) - 1 in (l, V2 (l `div` 2) 0)
+
+mkHexEdges
+  :: (Manifest r Ix2 (V3 Float), Integral a2) =>
+     Array r Ix2 (V3 Float)
+     -> a2 -> V2 Int -> [(V4 (V3 Float), V4 (V3 Float))]
+mkHexEdges arr l offset =
+  let 
+      vs = fmap (\(V2 i j) -> index' arr (i :. j)) $ hexagonIndicesRh l offset
+  in  mkSideTris vs
+  where
+    mkSideTris (tl:tr:hs) = let bl = projectOnXy tl
+                                br = projectOnXy tr
+                            in (V4 0 tl bl tr, V4 0 tr bl br):mkSideTris (tr:hs)
+    mkSideTris _ = []
+
+mkHex
+  :: (Manifest r Ix2 (V3 Float), Extract r Ix2 (V3 Float),
+      Source (R r) Ix2 (V3 Float)) =>
+     Array r Ix2 (V3 Float) -> [Triangle]
+mkHex arr = hTop ++ hBottom ++ hSides
+    where
+      (l, offset) = maxHex $ size arr
+      hSurface = filter (\(V4 _ a b c) -> vertexInHex a && vertexInHex b && vertexInHex c) . flattenTuples . toList . mkTopRh $ arr
+      hTop = fmap scale $ hSurface
+      hBottom = fmap scale . fmap projectTriangle $ hSurface
+      hSides = fmap scale . flattenTuples $ mkHexEdges arr l offset
+      epsilon = 0.5
+      shift (V2 x y) =  V2 (x - epsilon / 2) (y - epsilon / sqrt 3)
+      vertexInHex (V3 x y _) = pointInHex (fromIntegral l + epsilon ) (shift . fmap fromIntegral $ offset) (V2 x y)

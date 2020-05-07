@@ -4,3 +4,8 @@ source-repository-package
     type: git
     location: https://github.com/TimPut/STL-Linear.git
     tag: 214d506803848696a03ff961d18e896c1d22e0b6
+
+source-repository-package
+    type: git
+    location: https://github.com/TimPut/Hexagonal.git
+    tag: a6ce0e57627b73ad208a47842a02333978c6113f
