@@ -8,7 +8,7 @@ bug-reports:         https://github.com/timput/hTile/issues
 license:             GPL-3.0-only
 license-file:        LICENSE
 author:              tim put
-maintainer:          tim put <timpu@gmail.com>
+maintainer:          tim put <timput@gmail.com>
 copyright:           2020 tim put
 category:            Application
 build-type:          Simple

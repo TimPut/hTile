@@ -1,7 +1,7 @@
 {- |
 Copyright: (c) 2020 tim put
 SPDX-License-Identifier: GPL-3.0-only
-Maintainer: tim put <timpu@gmail.com>
+Maintainer: tim put <timput@gmail.com>
 
 Convert geotiffs and other images to STLs for printing or machining.
 -}
