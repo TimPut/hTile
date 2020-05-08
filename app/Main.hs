@@ -9,9 +9,7 @@ import           Data.Massiv.Array.IO
 import qualified Data.Vector.Unboxed   as V
 import           Graphics.STL
 import           HTile
-import           System.Environment    (getArgs)
 import           Options.Applicative hiding (header)
-import           Data.Semigroup ((<>))
 
 data Opts = Opts { infile :: String
                  , outfile :: String
@@ -38,7 +36,9 @@ main = do
       y' = y - 1
       -- num_facets = facets from the: up and down edges + left and
       -- right edges + top and bottom faces
-      facets = 2 * (2 * x') + 2 * (2 * y') + 2 * (2 * (x' * y'))
+      squareFacets = 2 * (2 * x') + 2 * (2 * y') + 2 * (2 * (x' * y'))
+
+      hexFacets = let n = (min x y) `div` 2 in 12 * (n-2) * (n-1)
 
       sides = mkEdges located
       surface = dropWindow $ mkTop located
@@ -48,10 +48,11 @@ main = do
       locatedRh = computeAs B . locateRh . resampleToHex . computeSource @U . fmap fromIntegral . fmap raw $ file'
 
       tris = if hex args 
-             then V.fromListN facets $ mkHex locatedRh 
-             else V.fromListN facets . flattenTuples $ (top++bottom++sides)
+             then V.fromListN hexFacets $ mkHex locatedRh 
+             else V.fromListN squareFacets . flattenTuples $ (top++bottom++sides)
+
       r = STL { header = pack "Made with hTile"
-              , numFacets = fromIntegral facets
+              , numFacets = if hex args then fromIntegral hexFacets else fromIntegral squareFacets
               , triangles = tris
               }
   encodeFile (outfile args) r
