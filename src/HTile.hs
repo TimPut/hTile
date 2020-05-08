@@ -171,7 +171,7 @@ mkTopRh arr = imap mkTriangles (extract' (0 :. 0) (Sz (x-1 :. y-1)) arr)
 
 -- TODO this bound is conservative in some cases
 maxHex :: Sz2 -> (Int, V2 Int)
-maxHex (Sz2 x y) = let l = ((min x y) `div` 2) - 1 in (l, V2 (l `div` 2) 0)
+maxHex (Sz2 x y) = let l = ((min x y) `div` 2) - 1 in (l, V2 ((l `div` 2) + 1) 0)
 
 mkHexEdges
   :: (Manifest r Ix2 (V3 Float), Integral a2) =>
