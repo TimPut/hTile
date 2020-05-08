@@ -9,7 +9,8 @@ Convert geotiffs and other images to STLs for printing or machining.
 ![](imgs/hfstl.jpeg?raw=true)<sup>[1](#fstl)</sup>
 
 # Usage
-If you are looking for topographic data to use with this, I recommend getting it from https://www.eorc.jaxa.jp/ALOS/en/aw3d30/.
+If you are looking for topographic data to use with this, I recommend
+getting it from https://www.eorc.jaxa.jp/ALOS/en/aw3d30/.
 
 ```
 hTile -i inputFile.tif -o outputFile.stl 
@@ -17,6 +18,11 @@ hTile -i inputFile.tif -o outputFile.stl
 ```
 hTile -i inputFile.tif -o outputFile.stl --hex
 ```
+
+The hex output option also resamples (bilinear) the input data on a
+regular hexagonal grid. This produces more aesthetically pleasing
+surfaces in the STL, since the surfaces are composed primarily of
+nearly equilateral triangles.
 
 # Known Bugs
 1) Breaks on tifs with nonstandard metadata. This is a problem upstream
@@ -26,7 +32,7 @@ hTile -i inputFile.tif -o outputFile.stl --hex
    mogrify -strip inputFile.tif
    ```
 # TODO
-1) [ ] Currently processes entire rectangular area of the source image into
+1) [x] Currently processes entire rectangular area of the source image into
    STL, we would like to eventually process hexagonal sub-regions.
 2) [ ] Currently processes whole image into a single STL, we would like to
    tile multiple STLs out of a single source image.
