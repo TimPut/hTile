@@ -10,6 +10,7 @@ import qualified Data.Vector.Unboxed   as V
 import           Graphics.STL
 import           HTile
 import           Options.Applicative hiding (header)
+import           Linear (V4(..),V3(..))
 
 data Opts = Opts { infile :: String
                  , outfile :: String
@@ -61,9 +62,10 @@ main = do
              else V.fromList . flattenTuples $ (top++bottom++sides)
 
       r = STL { header = pack "Made with hTile"
-              -- , numFacets = if hex args then fromIntegral hexFacets else fromIntegral squareFacets
-              , numFacets = fromIntegral $ V.length tris
-              , triangles = tris
+              -- , numTriangles = if hex args then fromIntegral hexFacets else fromIntegral squareFacets
+              , numTriangles = fromIntegral $ V.length tris
+              , normals = V.map (\ (V4 n _ _ _) -> n) tris
+              , triangles = V.map (\ (V4 _ a b c) -> V3 a b c) tris
               }
   encodeFile (outfile args) r
 
