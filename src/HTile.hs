@@ -170,8 +170,14 @@ mkTopRh arr = imap mkTriangles (extract' (0 :. 0) (Sz (x-1 :. y-1)) arr)
             bl = arr ! (i :. j + 1)
             br = arr ! (i + 1 :. j + 1)
         in if even j
-           then (V4 0 tl bl tr, V4 0 tr bl br)
-           else (V4 0 tl bl br, V4 0 tl br tr)
+           then (V4 0 tl tr bl, V4 0 tr br bl)
+           else (V4 0 tl br bl, V4 0 tl tr br)
+
+        -- in if even j
+           -- then (V4 0 tl bl tr, V4 0 tr bl br)
+           -- else (V4 0 tl bl br, V4 0 tl br tr)
+
+
 
 -- TODO this bound is conservative in some cases
 maxHex :: Sz2 -> (Int, V2 Int)
