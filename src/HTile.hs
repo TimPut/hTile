@@ -10,17 +10,18 @@ Convert geotiffs and other images to STLs for printing or machining.
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 
-
 module HTile where
 
 import           Data.Binary          hiding (get)
 import           Data.Massiv.Array
-import           Data.Massiv.Array.IO hiding (V3,V2)
-import           Graphics.STL
+import           Data.Massiv.Array.Unsafe
+import           Data.Massiv.Array.IO
+-- import           Graphics.STL         hiding (Triangle)
 import           Linear               hiding (project)
 import           Prelude              hiding (map)
-import Hexagonal
+import           Hexagonal
 
+type Triangle = V4 (V3 Float)
 
 flattenTuples :: [(a,a)] -> [a]
 flattenTuples []         = []
@@ -59,12 +60,13 @@ locate = imap (\ (x :. y) z -> V3 (s x) (s y) (s' z))
 
 -- triangulate on the up diagonal |/|
 triangulation :: Stencil Ix2 (V3 Float) (Triangle, Triangle)
-triangulation = makeStencilDef 0 (Sz (2 :. 2)) (0 :. 0) $ \ get ->
+-- triangulation :: _
+triangulation = makeUnsafeStencil (Sz (2 :. 2)) (0 :. 0) $ \ _ get ->
                let tl = get (0 :. 0)
                    tr = get (1 :. 0)
                    bl = get (0 :. 1)
                    br = get (1 :. 1)
-               in (,) <$> (V4 <$> 0 <*> tl <*> bl <*> tr) <*> (V4 <$> 0 <*> tr <*> bl <*> br)
+               in (V4 0 tl bl tr, V4 0 tr bl br)
 {-# INLINE triangulation #-}
 
 -- Takes array of vertices to an array of pairs of triangles, each
@@ -76,21 +78,21 @@ mkTop = applyStencil noPadding triangulation
 
 
 frontSideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
-frontSideStencil = makeStencilDef 0 (Sz 2) (0) $ \ get ->
+frontSideStencil = makeUnsafeStencil (Sz 2) 0 $ \ _ get ->
                let tl = get (0)
                    tr = get (1)
-                   bl = projectOnXy <$> tl
-                   br = projectOnXy <$> tr
-               in (,) <$> (V4 <$> 0 <*> tl <*> bl <*> tr) <*> (V4 <$> 0 <*> tr <*> bl <*> br)
+                   bl = projectOnXy tl
+                   br = projectOnXy tr
+               in (V4 0 tl bl tr, V4 0 tr bl br)
 {-# INLINE frontSideStencil #-}
 
 backSideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
-backSideStencil = makeStencilDef 0 (Sz 2) (0) $ \ get ->
+backSideStencil = makeUnsafeStencil (Sz 2) 0 $ \ _ get ->
                let tl = get (0)
                    tr = get (1)
-                   bl = projectOnXy <$> tl
-                   br = projectOnXy <$> tr
-               in (,) <$> (V4 <$> 0 <*> tl <*> tr <*> bl) <*> (V4 <$> 0 <*> tr <*> br <*> bl)
+                   bl = projectOnXy tl
+                   br = projectOnXy tr 
+               in (V4 0 tl tr bl, V4 0 tr br bl)
 {-# INLINE backSideStencil #-}
 
 mkFrontSides :: Manifest r Ix1 (V3 Float) =>
