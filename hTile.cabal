@@ -21,12 +21,12 @@ source-repository head
   location:            https://github.com/timput/hTile.git
 
 common common-options
-  build-depends:       base ^>= 4.13.0.0
+  build-depends:       base >= 4.13.0.0
                      , Color
                      , STL-Linear
                      , linear
-                     , massiv
-                     , massiv-io
+                     , massiv >= 1.0
+                     , massiv-io >= 1.0
                      , vector
                      , bytestring
                      , binary

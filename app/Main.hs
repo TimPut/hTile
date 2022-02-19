@@ -32,7 +32,7 @@ main = do
   -- happens)
   file <- readImageAuto (infile args) :: IO (Image S (Y D65) Word16)
   let file' = delay file
-      located = computeSource @U . locate . fmap raw $ file'
+      located = computeAs U $ locate . fmap raw $ file'
       (Sz2 x y) = size located
 
       f = recip $ _scale args

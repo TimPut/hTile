@@ -36,7 +36,7 @@ scale factor pitch (V4 n a b c) = rebuildNormal $ V4 n (s a) (s b) (s c)
   where s (V3 x y z) = let factor' = pitch*factor
                        in V3 (x*factor') (y*factor') (z*factor)
 
-scaleArray :: (Source r i (V4 (V3 Float), V4 (V3 Float))) =>
+scaleArray :: (Source r (V4 (V3 Float), V4 (V3 Float)), Index i) =>
          Float -> Float -> 
          Array r i (V4 (V3 Float), V4 (V3 Float)) ->
          Array D i (V4 (V3 Float), V4 (V3 Float))
@@ -52,7 +52,8 @@ rebuildNormal (V4 _ a b c) = let t = c - a
                              in V4 (unsafeNormalize (t `cross` u)) a b c
 
 -- Annotate pixels with their locations as a function of their indices
-locate :: (Source r Ix2 Word16) => Array r Ix2 Word16 -> Array D Ix2 (V3 Float)
+
+locate :: (Source r Word16, Size r) => Array r Ix2 Word16 -> Array D Ix2 (V3 Float)
 locate = imap (\ (x :. y) z -> V3 (s x) (s y) (s' z))
                where
                  s :: Int -> Float
@@ -75,8 +76,10 @@ triangulation = makeUnsafeStencil (Sz (2 :. 2)) (0 :. 0) $ \ _ get ->
 -- pair being the triangles which result from the square of vertices
 -- located by the top-left vertex. Note that the resulting array is
 -- smaller than the input by one in each direction.
-mkTop :: Array U Ix2 (V3 Float) -> Array DW Ix2 (Triangle, Triangle)
-mkTop = applyStencil noPadding triangulation
+-- mkTop :: Array D Ix2 (V3 Float) -> Array DW Ix2 (Triangle, Triangle)
+mkTop :: (Load r Ix2 (V3 Float)) => Array r Ix2 (V3 Float)
+      -> Array DW Ix2 (Triangle, Triangle)
+mkTop = applyStencil noPadding triangulation . computeAs U
 
 
 left :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
@@ -97,13 +100,12 @@ right = makeUnsafeStencil (Sz 2) 0 $ \ _ get ->
                in (V4 0 tl tr bl, V4 0 tr br bl)
 {-# INLINE right #-}
 
-mkSide :: Manifest r Ix1 (V3 Float) =>
-             _ ->
-             Array r Ix1 (V3 Float) ->
-             Array DW Ix1 (Triangle, Triangle)
-mkSide stencil = applyStencil noPadding stencil
+mkSide :: (Load r Ix1 (V3 Float)) => Stencil Ix1 (V3 Float) (Triangle, Triangle) ->
+         Array r Ix1 (V3 Float) ->
+         Array DW Ix1 (Triangle, Triangle)
+mkSide stencil = applyStencil noPadding stencil . computeAs U
 
-mkBottom :: (Source r i (V4 (V3 Float), V4 (V3 Float))) =>
+mkBottom :: (Source r (V4 (V3 Float), V4 (V3 Float)), Index i) =>
          Array r i (V4 (V3 Float), V4 (V3 Float)) ->
          Array D i (V4 (V3 Float), V4 (V3 Float))
 mkBottom = map (\(t1,t2) -> (projectTriangle t1, projectTriangle t2))
@@ -116,12 +118,11 @@ projectTriangle (V4 _ a b c) = V4 0 (projectOnXy a) (projectOnXy c) (projectOnXy
 projectOnXy :: V3 Float -> V3 Float
 projectOnXy (V3 x y _) = V3 x y 0
 
-mkEdges :: ( Manifest (R r) Ix1 (V3 Float)
-          , OuterSlice r Ix2 (V3 Float)
-          , (InnerSlice r Ix2 (V3 Float))) =>
-          Float -> Float ->
-            Array r Ix2 (V3 Float) ->
-          [(Triangle,Triangle)]
+mkEdges :: (Load r Ix1 (V3 Float), Source r (V3 Float))
+        => Float
+        -> Float
+        -> Array r Ix2 (V3 Float)
+        -> [(V4 (V3 Float), V4 (V3 Float))]
 mkEdges a p arr =
   let (Sz2 x y) = size arr
       f = toList . scaleArray a p . dropWindow
@@ -138,8 +139,8 @@ unsafeNormalize v = fmap (/ sqrt l) v
 -- TODO rewrite hex utilites for better interface with massiv, less
 -- wrapping and unwrapping of Linear.V2
 resampleToHex
-  :: (Floating e, RealFrac e, Manifest r1 Ix2 e,
-      Construct r2 Ix2 e) =>
+  :: (Floating e, RealFrac e, Manifest r1 e
+    , Load r2 Ix2 e) =>
      Array r1 Ix2 e -> Array r2 Ix2 e
 resampleToHex arr = makeArray Par (Sz (hx :. hy)) indexer
   where
@@ -153,8 +154,7 @@ locateRh :: Array D Ix2 Float -> Array D Ix2 (V3 Float)
 locateRh = imap (\ (x :. y) z -> let V2 x' y' = rhToS (V2 x y) in V3 x' y' z)
 
 mkTopRh
-  :: (Manifest r Ix2 e, Num e, Extract r Ix2 e,
-      Source (R r) Ix2 e) =>
+  :: (Manifest r e, Num e) =>
      Array r Ix2 e -> Array D Ix2 (V4 e, V4 e)
 mkTopRh arr = imap mkTriangles (extract' (0 :. 0) (Sz (x-1 :. y-1)) arr)
   where
@@ -180,7 +180,7 @@ maxHex :: Sz2 -> (Int, V2 Int)
 maxHex (Sz2 x y) = let l = ((min x y) `div` 2) - 1 in (l, V2 ((l `div` 2) + 1) 0)
 
 mkHexEdges
-  :: (Manifest r Ix2 (V3 Float), Integral a2) =>
+  :: (Manifest r (V3 Float), Integral a2) =>
      Array r Ix2 (V3 Float)
      -> a2 -> V2 Int -> [(V4 (V3 Float), V4 (V3 Float))]
 mkHexEdges arr l offset =
@@ -194,8 +194,7 @@ mkHexEdges arr l offset =
     mkSideTris _ = []
 
 mkHex
-  :: (Manifest r Ix2 (V3 Float), Extract r Ix2 (V3 Float),
-      Source (R r) Ix2 (V3 Float)) =>
+  :: (Manifest r (V3 Float)) =>
     Float -> Float ->
      Array r Ix2 (V3 Float) -> [Triangle]
 mkHex f p arr = hTop ++ hBottom ++ hSides
