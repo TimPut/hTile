@@ -68,7 +68,7 @@ triangulation = makeUnsafeStencil (Sz (2 :. 2)) (0 :. 0) $ \ _ get ->
                    tr = get (1 :. 0)
                    bl = get (0 :. 1)
                    br = get (1 :. 1)
-               in (V4 0 tl bl tr, V4 0 tr bl br)
+               in (V4 0 tl tr bl, V4 0 tr br bl)
 {-# INLINE triangulation #-}
 
 -- Takes array of vertices to an array of pairs of triangles, each
@@ -79,33 +79,29 @@ mkTop :: Array U Ix2 (V3 Float) -> Array DW Ix2 (Triangle, Triangle)
 mkTop = applyStencil noPadding triangulation
 
 
-frontSideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
-frontSideStencil = makeUnsafeStencil (Sz 2) 0 $ \ _ get ->
+left :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
+left = makeUnsafeStencil (Sz 2) 0 $ \ _ get ->
                let tl = get (0)
                    tr = get (1)
                    bl = projectOnXy tl
                    br = projectOnXy tr
                in (V4 0 tl bl tr, V4 0 tr bl br)
-{-# INLINE frontSideStencil #-}
+{-# INLINE left #-}
 
-backSideStencil :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
-backSideStencil = makeUnsafeStencil (Sz 2) 0 $ \ _ get ->
+right :: Stencil Ix1 (V3 Float) (Triangle, Triangle)
+right = makeUnsafeStencil (Sz 2) 0 $ \ _ get ->
                let tl = get (0)
                    tr = get (1)
                    bl = projectOnXy tl
-                   br = projectOnXy tr 
+                   br = projectOnXy tr
                in (V4 0 tl tr bl, V4 0 tr br bl)
-{-# INLINE backSideStencil #-}
+{-# INLINE right #-}
 
-mkFrontSides :: Manifest r Ix1 (V3 Float) =>
+mkSide :: Manifest r Ix1 (V3 Float) =>
+             _ ->
              Array r Ix1 (V3 Float) ->
              Array DW Ix1 (Triangle, Triangle)
-mkFrontSides = applyStencil noPadding frontSideStencil
-
-mkBackSides :: Manifest r Ix1 (V3 Float) =>
-            Array r Ix1 (V3 Float) ->
-            Array DW Ix1 (Triangle, Triangle)
-mkBackSides = applyStencil noPadding backSideStencil
+mkSide stencil = applyStencil noPadding stencil
 
 mkBottom :: (Source r i (V4 (V3 Float), V4 (V3 Float))) =>
          Array r i (V4 (V3 Float), V4 (V3 Float)) ->
@@ -129,10 +125,10 @@ mkEdges :: ( Manifest (R r) Ix1 (V3 Float)
 mkEdges a p arr =
   let (Sz2 x y) = size arr
       f = toList . scaleArray a p . dropWindow
-      upEdge = f $ mkFrontSides (arr !> 0)
-      downEdge  = f $ mkBackSides (arr !> (x-1))
-      leftEdge  = f $ mkFrontSides (arr <! 0)
-      rightEdge  = f $ mkBackSides (arr <! (y-1))
+      upEdge = f $ mkSide right $ (arr !> 0)
+      downEdge  = f $ mkSide left $ (arr !> (x-1))
+      leftEdge  = f $ mkSide left $ (arr <! 0)
+      rightEdge  = f $ mkSide right $ (arr <! (y-1))
   in upEdge ++ downEdge ++ leftEdge ++ rightEdge
 
 unsafeNormalize :: V3 Float -> V3 Float
