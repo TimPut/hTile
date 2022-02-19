@@ -1,6 +1,6 @@
 cabal-version:       2.4
 name:                hTile
-version:             0.0.0.0
+version:             1.0.0.0
 synopsis:            Convert geotiffs and other images to STLs for printing or machining.
 description:         Convert geotiffs and other images to STLs for printing or machining.
 homepage:            https://github.com/timput/hTile
