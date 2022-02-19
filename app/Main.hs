@@ -14,6 +14,8 @@ import           Options.Applicative hiding (header)
 data Opts = Opts { infile :: String
                  , outfile :: String
                  , hex :: Bool
+                 , _scale :: Float
+                 , _pitch :: Float
                  }
 main :: IO ()
 main = do
@@ -32,6 +34,9 @@ main = do
       located = computeSource @U . locate . fmap raw $ file'
       (Sz2 x y) = size located
 
+      f = recip $ _scale args
+      p = _pitch args
+  
       x' = x - 1 -- n vertices in a row are connected by n-1 segments
       y' = y - 1
       -- num_facets = facets from the: up and down edges + left and
@@ -40,19 +45,24 @@ main = do
 
       hexFacets = let n = (min x y) `div` 2 in 12 * (n-2) * (n-1)
 
-      sides = mkEdges located
+      sides = mkEdges f p located
       surface = dropWindow $ mkTop located
-      top = toList . scaleArray $ surface
-      bottom = toList . scaleArray $ mkBottom surface
+      top = toList . scaleArray f p $ surface
+      bottom = toList . scaleArray f p $ mkBottom surface
 
       locatedRh = computeAs B . locateRh . resampleToHex . computeSource @U . fmap fromIntegral . fmap raw $ file'
 
+      -- tris = if hex args 
+      --        then V.fromListN hexFacets $ mkHex locatedRh 
+      --        else V.fromListN squareFacets . flattenTuples $ (top++bottom++sides)
+
       tris = if hex args 
-             then V.fromListN hexFacets $ mkHex locatedRh 
-             else V.fromListN squareFacets . flattenTuples $ (top++bottom++sides)
+             then V.fromList $ mkHex f p locatedRh 
+             else V.fromList . flattenTuples $ (top++bottom++sides)
 
       r = STL { header = pack "Made with hTile"
-              , numFacets = if hex args then fromIntegral hexFacets else fromIntegral squareFacets
+              -- , numFacets = if hex args then fromIntegral hexFacets else fromIntegral squareFacets
+              , numFacets = fromIntegral $ V.length tris
               , triangles = tris
               }
   encodeFile (outfile args) r
@@ -74,8 +84,15 @@ opts = Opts
           ( long "hex"
          <> short 'h'
          <> help "Build hexagonal prisms" )
- 
-
-
-
-
+      <*> option auto
+          ( long "scale"
+         <> short 's'
+         <> showDefault
+         <> value 100
+         <> help "Scale factor from geotiff values to STL units" )
+      <*> option auto
+          ( long "pitch"
+         <> short 'p'
+         <> showDefault
+         <> value 30
+         <> help "Pixel pitch of geotiff measured in geotiff values, e.g. SRTM data -> 30 m/pixel" )

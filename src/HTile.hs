@@ -31,14 +31,16 @@ flattenTuples ((a,b):xs) = a:b: flattenTuples xs
 -- values in meters. If we scale down 1:100, then load the resulting
 -- STL in a slicer which assumes mm scale units, then we get a
 -- 1:100000 scale result, which is a good ballpark scale factor.
-scale :: Triangle -> Triangle
-scale (V4 n a b c) = rebuildNormal $ V4 n (s a) (s b) (s c)
-  where s (V3 x y z) = let m = 100 in V3 (x * (30/m)) (y*(30/m)) (z/m)
+scale :: Float -> Float -> Triangle -> Triangle
+scale factor pitch (V4 n a b c) = rebuildNormal $ V4 n (s a) (s b) (s c)
+  where s (V3 x y z) = let factor' = pitch*factor
+                       in V3 (x*factor') (y*factor') (z*factor)
 
 scaleArray :: (Source r i (V4 (V3 Float), V4 (V3 Float))) =>
+         Float -> Float -> 
          Array r i (V4 (V3 Float), V4 (V3 Float)) ->
          Array D i (V4 (V3 Float), V4 (V3 Float))
-scaleArray = map (\(t1,t2) -> (scale t1, scale t2))
+scaleArray f p = map (\(t1,t2) -> (scale f p t1, scale f p t2))
 
 -- Extract raw pixel data from colour space and pixel wrappers
 raw :: (ColorModel cs e, Components cs e ~ Word16) => Pixel cs e -> Word16
@@ -121,11 +123,12 @@ projectOnXy (V3 x y _) = V3 x y 0
 mkEdges :: ( Manifest (R r) Ix1 (V3 Float)
           , OuterSlice r Ix2 (V3 Float)
           , (InnerSlice r Ix2 (V3 Float))) =>
+          Float -> Float ->
             Array r Ix2 (V3 Float) ->
           [(Triangle,Triangle)]
-mkEdges arr =
+mkEdges a p arr =
   let (Sz2 x y) = size arr
-      f = toList . scaleArray . dropWindow
+      f = toList . scaleArray a p . dropWindow
       upEdge = f $ mkFrontSides (arr !> 0)
       downEdge  = f $ mkBackSides (arr !> (x-1))
       leftEdge  = f $ mkFrontSides (arr <! 0)
@@ -133,9 +136,8 @@ mkEdges arr =
   in upEdge ++ downEdge ++ leftEdge ++ rightEdge
 
 unsafeNormalize :: V3 Float -> V3 Float
-unsafeNormalize v = fmap (/sqrt l) v
+unsafeNormalize v = fmap (/ sqrt l) v
   where l = quadrance v
-
 
 -- TODO rewrite hex utilites for better interface with massiv, less
 -- wrapping and unwrapping of Linear.V2
@@ -192,14 +194,15 @@ mkHexEdges arr l offset =
 mkHex
   :: (Manifest r Ix2 (V3 Float), Extract r Ix2 (V3 Float),
       Source (R r) Ix2 (V3 Float)) =>
+    Float -> Float ->
      Array r Ix2 (V3 Float) -> [Triangle]
-mkHex arr = hTop ++ hBottom ++ hSides
+mkHex f p arr = hTop ++ hBottom ++ hSides
     where
       (l, offset) = maxHex $ size arr
       hSurface = filter (\(V4 _ a b c) -> vertexInHex a && vertexInHex b && vertexInHex c) . flattenTuples . toList . mkTopRh $ arr
-      hTop = fmap scale $ hSurface
-      hBottom = fmap scale . fmap projectTriangle $ hSurface
-      hSides = fmap scale . flattenTuples $ mkHexEdges arr l offset
+      hTop = fmap (scale f p) $ hSurface
+      hBottom = fmap (scale f p) . fmap projectTriangle $ hSurface
+      hSides = fmap (scale f p) . flattenTuples $ mkHexEdges arr l offset
       epsilon = 0.5
       shift (V2 x y) =  V2 (x - epsilon / 2) (y - epsilon / sqrt 3)
       vertexInHex (V3 x y _) = pointInHex (fromIntegral l + epsilon ) (shift . fmap fromIntegral $ offset) (V2 x y)
