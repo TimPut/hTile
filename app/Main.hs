@@ -30,23 +30,20 @@ main :: IO ()
 main = do
   let optsInfo = info (opts <**> helper) briefDesc
   args <- execParser optsInfo
-
-  -- Automatically convert colour images to greyscale using the D65
-  -- illuminant standard. If the image is already greyscale this
-  -- transformation is the identity (this is not documented in
-  -- massiv-io/color, but it is the obvious behaviour and it is what
-  -- happens)
-  -- Array r Ix2 e
   heights <- if takeExtension (infile args) == ".hgt"
             then do
-               -- bs <- B.readFile (infile args)
                bs <- decodeFile (infile args) :: IO HGT
-               -- let hs = V.fromList . fmap (fromIntegral :: Word8 -> Word16) $ bs
-                   -- dims = if V.length hs > 1201^2 then 3601 else 1201
                let hs = V.fromList . fmap (fromIntegral :: Int16 -> Word16) . fmap abs $ elevations bs
                    dims = if V.length hs == 3601^2 then 3601 else 3601
                -- pure $ makeArrayLinear Seq (Sz (dims :. dims)) (\i -> hs V.! i)
                pure $ makeArray Seq (Sz (2000 :. 2000)) (\(i :. j) -> hs V.! (i*3601+j))
+
+
+            -- Automatically convert colour images to greyscale using the D65
+            -- illuminant standard. If the image is already greyscale this
+            -- transformation is the identity (this is not documented in
+            -- massiv-io/color, but it is the obvious behaviour and it is what
+            -- happens)
             else fmap raw . delay <$> (readImageAuto (infile args) :: IO (Image S (Y D65) Word16))
   
   -- heights <- extractM zeroIndex (Sz2 1200 1200) heights'
