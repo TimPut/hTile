@@ -4,6 +4,7 @@ module Main (main) where
 
 import           Data.Binary           (encodeFile)
 import           Data.ByteString.Char8 (pack)
+import qualified Data.ByteString.Lazy as B
 import           Data.Massiv.Array
 import           Data.Massiv.Array.IO
 import qualified Data.Vector.Unboxed   as V
@@ -11,6 +12,13 @@ import           Graphics.STL
 import           HTile
 import           Options.Applicative hiding (header)
 import           Linear (V4(..),V3(..))
+import           System.FilePath
+import           Data.Binary
+import           Data.Binary.Get
+import           Data.Binary.Put
+import           Control.Monad
+import           Data.Int (Int16)
+import           Data.Word (Word16)
 
 data Opts = Opts { infile :: String
                  , outfile :: String
@@ -22,17 +30,27 @@ main :: IO ()
 main = do
   let optsInfo = info (opts <**> helper) briefDesc
   args <- execParser optsInfo
-  -- TODO: proper cli
-  -- [inFile, outFile] <- getArgs :: IO [String]
 
   -- Automatically convert colour images to greyscale using the D65
   -- illuminant standard. If the image is already greyscale this
   -- transformation is the identity (this is not documented in
   -- massiv-io/color, but it is the obvious behaviour and it is what
   -- happens)
-  file <- readImageAuto (infile args) :: IO (Image S (Y D65) Word16)
-  let file' = delay file
-      located = computeAs U $ locate . fmap raw $ file'
+  -- Array r Ix2 e
+  heights <- if takeExtension (infile args) == ".hgt"
+            then do
+               -- bs <- B.readFile (infile args)
+               bs <- decodeFile (infile args) :: IO HGT
+               -- let hs = V.fromList . fmap (fromIntegral :: Word8 -> Word16) $ bs
+                   -- dims = if V.length hs > 1201^2 then 3601 else 1201
+               let hs = V.fromList . fmap (fromIntegral :: Int16 -> Word16) . fmap abs $ elevations bs
+                   dims = if V.length hs == 3601^2 then 3601 else 3601
+               -- pure $ makeArrayLinear Seq (Sz (dims :. dims)) (\i -> hs V.! i)
+               pure $ makeArray Seq (Sz (2000 :. 2000)) (\(i :. j) -> hs V.! (i*3601+j))
+            else fmap raw . delay <$> (readImageAuto (infile args) :: IO (Image S (Y D65) Word16))
+  
+  -- heights <- extractM zeroIndex (Sz2 1200 1200) heights'
+  let located = computeAs U $ locate $ heights
       (Sz2 x y) = size located
 
       f = recip $ _scale args
@@ -51,7 +69,7 @@ main = do
       top = toList . scaleArray f p $ surface
       bottom = toList . scaleArray f p $ mkBottom surface
 
-      locatedRh = computeAs B . locateRh . resampleToHex . computeSource @U . fmap fromIntegral . fmap raw $ file'
+      locatedRh = computeAs B . locateRh . resampleToHex . computeSource @U . fmap fromIntegral $ heights
 
       -- tris = if hex args 
       --        then V.fromListN hexFacets $ mkHex locatedRh 
@@ -67,6 +85,7 @@ main = do
               , normals = V.map (\ (V4 n _ _ _) -> n) tris
               , triangles = V.map (\ (V4 _ a b c) -> V3 a b c) tris
               }
+  -- print top
   encodeFile (outfile args) r
 
 
@@ -98,3 +117,16 @@ opts = Opts
          <> showDefault
          <> value 30
          <> help "Pixel pitch of geotiff measured in geotiff values, e.g. SRTM data -> 30 m/pixel" )
+
+data HGT = HGT { elevations :: [Int16] }
+instance Binary HGT where
+  put (HGT es) = do
+    sequence_ $ putInt16be <$> es
+  get = do
+    HGT <$> replicateM (3601^2) getInt16be
+
+-- getInt16be :: Get Int16
+-- getInt16be = do a <- getWord16be
+--                 return $ fromIntegral a
+-- putInt16be :: Int16 -> Put
+-- putInt16be i = putWord16be ((fromIntegral i) :: Word16)                

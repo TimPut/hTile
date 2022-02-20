@@ -63,7 +63,6 @@ locate = imap (\ (x :. y) z -> V3 (s x) (s y) (s' z))
 
 -- triangulate on the up diagonal |/|
 triangulation :: Stencil Ix2 (V3 Float) (Triangle, Triangle)
--- triangulation :: _
 triangulation = makeUnsafeStencil (Sz (2 :. 2)) (0 :. 0) $ \ _ get ->
                let tl = get (0 :. 0)
                    tr = get (1 :. 0)

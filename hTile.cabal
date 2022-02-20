@@ -31,6 +31,7 @@ common common-options
                      , bytestring
                      , binary
                      , Hexagonal
+                     , filepath
                      
   ghc-options:         -Wall
                        -Wcompat
